@@ -1,0 +1,19 @@
+{
+  "name": "webcodecs-quantizer",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/tetter27/webcodecs-quantizer.git",
+  "author": "tetter27",
+  "license": "MIT",
+  "dependencies": {
+    "http-server": "^14.1.1"
+  },
+  "scripts": {
+    "start": "http-server -p 8080",
+    "lint": "eslint --ext js,jsx .",
+    "lint:fix": "eslint --ext js,jsx --fix ."
+  },
+  "devDependencies": {
+    "eslint": "^8.55.0"
+  }
+}
