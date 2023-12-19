@@ -8,8 +8,13 @@
         <script src="https://cdn.plot.ly/plotly-1.2.0.min.js"></script>
     </head>
     <body>
+        <div id="plot-area" style="width: 1200px; height: 500px;"></div>
+        <div>
+            <button id="start-button">Start</button>
+        </div>
+        元データ: 
         <video id="input-video" src="./video/bbb_sunflower_1080p_60fps_normal.mp4" controls muted></video>
+        エンコード・デコード後:
         <video id="output-video"></video>
-        <button id="start-button">Start</button>
         <script src="src/index.js"></script>
     </body>

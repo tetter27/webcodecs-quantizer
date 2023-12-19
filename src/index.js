@@ -1,21 +1,33 @@
 class Quantizer {
 
-    constructor(width, height, fps){
+    constructor(width, height, fps, plotArea){
 
+        this.bitrate = 1000000;
         this.encoderConfig = {
+            // codec: "av01.0.04M.08",
             codec: "vp09.00.10.08",
+            // codec: "avc1.64001E",
             width: width,
             height: height,
-            bitrateMode: "quantizer",
+            // bitrateMode: "quantizer",
+            // bitrateMode: "constant",
             framerate: fps,
-            latencyMode: "realtime",
+            //latencyMode: "realtime",
+            // bitrate: this.bitrate,
         };
         this.chunks = [];
-        this.qp = 50;
+        this.qp = 30;
         this.controller = null;
+        this.plotArea = plotArea;
+        this.counter = 0;
+        this.fps = fps;
+        console.log(fps);
+        this.plotSec = 0.5;
+        this.bitrateSwitch = 0;
 
         this.handleChunk = (chunk, config) => {
-            if (this.decoder && config.decoderConfig) {
+            if (config.decoderConfig && this.decoder.state === "unconfigured") {
+                config.decoderConfig.optimizeForLatency = true;
                 this.decoder.configure(config.decoderConfig);
             }
             this.decoder.decode(chunk); // path to decoder
@@ -24,7 +36,7 @@ class Quantizer {
                 this.chunks = [];
               } else {
                 this.chunks.push(chunk);
-                if (this.chunks.length > fps) {
+                if (this.chunks.length > this.ps) {
                   let _ = this.chunks.shift();
                 }
               }
@@ -47,19 +59,21 @@ class Quantizer {
 
         this.encodeOptions = { keyFrame: false };
 
-        this.setQP(this.qp);
-
         this.decoder = new VideoDecoder({
             output: this.processVideo,
             error: (e) => { console.error(e.message); }
         });
+
+        this.time = new Date();
+
+        this.initPlot();
 
     }
 
     // from https://docs.google.com/presentation/d/1FpCAlxvRuC0e52JrthMkx-ILklB5eHszbk8D3FIuSZ0/edit?usp=sharing
     calculateQP(qp) {
         const frames_to_consider = 4;
-        const frame_budget_bytes = (this.bitrate / this.framerate) / 8;
+        const frame_budget_bytes = (this.bitrate / this.fps) / 8;
         const impact_ratio = [1.0 / 8, 1.0 / 8, 1.0 / 4, 1.0 / 2];
 
         if (this.chunks.length < frames_to_consider) return;
@@ -88,38 +102,89 @@ class Quantizer {
             qp_change = -1;
         }
 
-        if (this.encoderConfig.codec.includes("vp09")) 
-            return Math.min(Math.max(qp + qp_change, 0), 63);
-        else if (this.encoderConfig.codec.includes("av01")) 
-            return Math.min(Math.max(qp + qp_change, 0), 63);
-        else if (this.encoderConfig.codec.includes("avc")) 
-            return Math.min(Math.max(qp + qp_change, 0), 51);
-    }
+       console.log("qp: " + qp + " qp_change: " + qp_change + " diff_ratio: " + diff_ratio);
 
-    setQP(qp) {
-        if (this.encoderConfig.codec.includes("vp09")) {
-            this.encodeOptions.vp9 = { quantizer: qp };
+       if (this.encoderConfig.codec.includes("vp09")) {
+            this.qp = Math.min(Math.max(qp + qp_change, 0), 63);
+            this.encodeOptions.vp9 = { quantizer: this.qp };
         } else if (this.encoderConfig.codec.includes("av01")) {
-            this.encodeOptions.av1 = { quantizer: qp };
+            this.qp = Math.min(Math.max(qp + qp_change, 0), 63);
+            this.encodeOptions.av1 = { quantizer: this.qp };
         } else if (this.encoderConfig.codec.includes("avc")) {
-            this.encoderConfig.encodeOptions.avc = { quantizer: qp };
+            this.qp = Math.min(Math.max(qp + qp_change, 0), 51);
+            this.encodeOptions.avc = { quantizer: this.qp };
         }
     }
 
     processing(videoFrame, controller) {
 
+        this.encodeOptions.vp9 = { quantizer: this.qp };
+
         this.controller = controller;
-        const qp = this.calculateQP(this.qp);
-        this.setQP(qp);
+        // this.calculateQP(this.qp);
+
+        // シナリオ1
+        // if (this.counter % 2000 == 500 && this.counter) {
+        //     this.bitrateSwitch = this.bitrateSwitch ? 0 : 800000;
+        // }
+        // this.bitrate = 1000000 - this.bitrateSwitch;
+
+        // シナリオ2
+        this.bitrate = this.bitrate + 10000;
+        if (this.bitrate > 20000000) this.bitrate = 200000;
+
+        // this.encoderConfig.bitrate = this.bitrate;
+        // this.encoder.configure(this.encoderConfig);
 
         this.encoder.encode(videoFrame, this.encodeOptions);
 
         this.ploting();
     }
 
-    ploting() {
+    initPlot() {
+        const layout = {
+            autosize: true,
+        }
 
+        const duration = 0;
+        const bitrateAimed = {
+            name: '目標のビットレート',
+            x: [duration],
+            y: [this.bitrate],            
+        };
+
+        const bitrateActual = {
+            name: '実際のビットレート',
+            x: [duration],
+            y: [0],
+        };
+
+        const data = [bitrateAimed, bitrateActual];
+
+        Plotly.newPlot(this.plotArea, data, layout);
     }
+
+    ploting() {
+        let plotRate = this.plotSec * this.fps;
+        if (this.counter++ % plotRate != 0) return;
+
+        let duration = (new Date() - this.time) / 1000;
+        
+        let totalBps = 0;
+        for (let chunk of this.chunks.slice(-plotRate)) {
+            totalBps += chunk.byteLength;
+        }
+
+        const bps = totalBps / plotRate * this.fps * 8;
+
+        const data = {
+            x: [[duration], [duration]],
+            y: [[this.bitrate], [bps]],
+        };
+        
+        Plotly.extendTraces(this.plotArea, data, [0, 1]);
+    }
+
 
 
 }
@@ -133,6 +198,7 @@ window.onload = async () => {
     const stream = await videoFromFile.captureStream();
 
     const videoTrack = stream.getVideoTracks()[0];
+    videoTrack.contentHint = "detail";
     const processor = new MediaStreamTrackProcessor({track: videoTrack});
     const generator = new MediaStreamTrackGenerator({kind: "video"});
     const outputStream = new MediaStream();
@@ -145,8 +211,13 @@ window.onload = async () => {
 
         console.log(videoFromFile.videoWidth);
         
+        const quantizer = new Quantizer(
+            videoFromFile.videoWidth, 
+            videoFromFile.videoHeight, 
+            videoTrack.getSettings().frameRate, 
+            "plot-area",
+            );
 
-        let quantizer = new Quantizer(videoFromFile.videoWidth, videoFromFile.videoHeight, videoFromFile.fps);
         const transformer = new TransformStream({
             async transform(videoFrame, controller) {
                 quantizer.processing(videoFrame, controller);

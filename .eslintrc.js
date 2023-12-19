@@ -28,5 +28,6 @@ module.exports = {
         VideoFrame: true,
         VideoEncoder: true,
         VideoDecoder: true,
+        Plotly: true,
     }
 }
