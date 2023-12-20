@@ -3,18 +3,77 @@
 <html lang="ja">
     <head>
         <meta charset="utf-8">
-        <title>WebCodecs Quantizer 4K Test</title>
+        <title>WebCodecs Quantizer Test</title>
         <link rel="stylesheet" href="css/style.css">
         <script src="https://cdn.plot.ly/plotly-1.2.0.min.js"></script>
     </head>
     <body>
-        <div id="plot-area" style="width: 1200px; height: 500px;"></div>
+        <style>
+            .select {
+                background: gray;
+            }
+            .select:active {
+                background: black;
+            }
+            .select:hover {
+                background: black;
+            }
+            #plot-area {
+                width: 1200px; 
+                height: 500px;
+            }
+            .little-table {
+                width: 20vh;
+            }
+            input[type="range"] {
+                width: 100%;
+            }
+        </style>
+        <table>
+            <tr>
+                <td>
+                    <div>
+                        <h3>動画ソース</h3>
+                        <button id="file-button" class="select">File</button> <button id="camera-button" class="select">Camera</button> <input type="file" id="video-file"/>
+                    </div>
+                    <div>
+                        <h3>動作モード</h3>
+                        <table class="little-table">
+                            <tr>
+                                <td>ビットレート変動</td>
+                                <td>QP指定</td>
+                            </tr>
+                            <tr>
+                                <td><button id="quantizer-button" class="select">Quantizer</button> <button id="constant-button" class="select">Constant</button></td>
+                                <td><button id="qp-button" class="select">QP</button></td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div>
+                        <h3>シナリオ</h3>
+                        <button id="scenario1-button" class="select">Scenario1</button> <button id="scenario2-button" class="select">Scenario2</button> <button id="user-controll-button" class="select">User Controll</button> <br>
+                        ビットレート <br>
+                        <span id="br-slider-value"></span> kbps <input id="br-slider" type="range" min="100" max="100000" value="1000" step="100">
+                    </div>
+                    <div>
+                        <h3>QP</h3>
+                        <span id="qp-slider-value"></span> <input id="qp-slider" type="range" min="0" max="51" value="30" step="1">
+                    </div>
+                </td>
+                <td><div id="plot-area"></div></td>
+            </tr>
+        </table>
         <div>
             <button id="start-button">Start</button>
         </div>
-        元データ: 
-        <video id="input-video" src="./video/bbb_sunflower_1080p_60fps_normal.mp4" controls muted></video>
-        エンコード・デコード後:
-        <video id="output-video"></video>
+        <hr>
+        <div>
+            元データ: 
+            <video id="input-video" src="./video/bbb_sunflower_1080p_60fps_normal.mp4" controls muted></video>
+        </div>
+        <div>
+            エンコード・デコード後:
+            <video id="output-video"></video>
+        </div>
         <script src="src/index.js"></script>
     </body>
