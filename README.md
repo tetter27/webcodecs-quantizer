@@ -1,24 +1,23 @@
 # webcodecs-quantizer
 
+https://tetter27.github.io/webcodecs-quantizer/
+
 ## Overview
-The following modes can be selected for operation:
-- Bit rate variation
+![](/img/ui.png)
+
+以下のモードを選択してビットレート推移を確認できます。
+- ビットレート変動
   - "quantizer"
   - "constant"
-- Constant QP
+- QP固定 (指定して変動も可)
 
-If you select bit rate variation, you can select from the following ways to change the bit rate.
-- Scenario 1: Bit rate is raised or lowered abruptly
-- Scenario 2: Gradual increase and rapid decrease in bit rate
-- Customized: User-controllable
+ビットレート変動を選択した場合、ビットレートの変化シナリオは以下から選択できます。
+- Scenario 1: 急激に減少・増加させる
+- Scenario 2: 緩やかに増加させ、急激に減少させる
+- Customized: ユーザーが制御する
 
-## Roadmap
-- [] 映像ソースの選択
-- [] 動作モードの選択
-  - [] quantizer
-  - [] constant
-  - [] QP指定
-- [] シナリオの選択
+## Environment
+Chrome 117 以上
 
 ## Reference
 - https://docs.google.com/presentation/d/1FpCAlxvRuC0e52JrthMkx-ILklB5eHszbk8D3FIuSZ0/edit?usp=sharing
