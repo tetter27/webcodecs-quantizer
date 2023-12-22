@@ -4,13 +4,13 @@
     <head>
         <meta charset="utf-8">
         <title>WebCodecs Quantizer Test</title>
-        <link rel="stylesheet" href="css/style.css">
         <script src="https://cdn.plot.ly/plotly-1.2.0.min.js"></script>
     </head>
     <body>
         <style>
             .select {
                 background: gray;
+                color: white;
             }
             .select:active {
                 background: black;
@@ -20,12 +20,20 @@
             }
             .selected {
                 background: black;
+                color: white;
             }
             .selected:active {
                 background: black;
             }
             .selected:hover {
                 background: black;
+            }
+            .select[disabled] {
+                color: gray;
+            }
+            .start {
+                background: red;
+                color: white;
             }
             #plot-area {
                 width: 600px; 
@@ -79,7 +87,7 @@
             </tr>
         </table>
         <div id="start-button-area" style="display:none">
-            <button id="start-button">Start</button>
+            <button id="start-button" class="start">Start</button>
         </div>
         <hr>
         <div id="input-video-area" style="display:none">
