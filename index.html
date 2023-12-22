@@ -18,25 +18,38 @@
             .select:hover {
                 background: black;
             }
+            .selected {
+                background: black;
+            }
+            .selected:active {
+                background: black;
+            }
+            .selected:hover {
+                background: black;
+            }
             #plot-area {
-                width: 1200px; 
+                width: 600px; 
                 height: 500px;
             }
             .little-table {
-                width: 20vh;
+                width: 40vh;
             }
             input[type="range"] {
                 width: 100%;
             }
         </style>
-        <table>
+        <table class="big-table">
             <tr>
                 <td>
-                    <div>
+                    <div id="source-select-area">
                         <h3>動画ソース</h3>
-                        <button id="file-button" class="select">File</button> <button id="camera-button" class="select">Camera</button> <input type="file" id="video-file"/>
+                        <button id="file-button" class="select">File</button> <button id="camera-button" class="select">Camera</button>
                     </div>
-                    <div>
+                    <div id="codec-select-area" style="display:none">
+                        <h3>コーデック</h3>
+                        <button id="av1-button" class="select">AV1</button> <button id="vp9-button" class="select">VP9</button> <button id="avc-button" class="select">AVC(H.264)</button>
+                    </div>
+                    <div id="mode-select-area" style="display:none">
                         <h3>動作モード</h3>
                         <table class="little-table">
                             <tr>
@@ -49,29 +62,31 @@
                             </tr>
                         </table>
                     </div>
-                    <div>
+                    <div id="scenario-select-area" style="display:none">
                         <h3>シナリオ</h3>
-                        <button id="scenario1-button" class="select">Scenario1</button> <button id="scenario2-button" class="select">Scenario2</button> <button id="user-controll-button" class="select">User Controll</button> <br>
-                        ビットレート <br>
-                        <span id="br-slider-value"></span> kbps <input id="br-slider" type="range" min="100" max="100000" value="1000" step="100">
+                        <button id="scenario1-button" class="select">Scenario1</button> <button id="scenario2-button" class="select">Scenario2</button> <button id="user-control-button" class="select">User Control</button> <br>
+                        <div id="br-adjast-area" style="display:none;">
+                            ビットレート <br>
+                            <span id="br-slider-value">1Mbps</span> <input id="br-slider" type="range" min="100" max="50000" value="1000" step="100">
+                        </div>
                     </div>
-                    <div>
+                    <div id="qp-adjast-area" style="display:none">
                         <h3>QP</h3>
-                        <span id="qp-slider-value"></span> <input id="qp-slider" type="range" min="0" max="51" value="30" step="1">
+                        <span id="qp-slider-value">30</span> <input id="qp-slider" type="range" min="0" max="51" value="30" step="1">
                     </div>
                 </td>
                 <td><div id="plot-area"></div></td>
             </tr>
         </table>
-        <div>
+        <div id="start-button-area" style="display:none">
             <button id="start-button">Start</button>
         </div>
         <hr>
-        <div>
+        <div id="input-video-area" style="display:none">
             元データ: 
-            <video id="input-video" src="./video/bbb_sunflower_1080p_60fps_normal.mp4" controls muted></video>
+            <video id="input-video" src="./video/droid.mov" muted></video>
         </div>
-        <div>
+        <div id="output-video-area" style="display:none">
             エンコード・デコード後:
             <video id="output-video"></video>
         </div>

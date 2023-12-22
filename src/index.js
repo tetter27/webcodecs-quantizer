@@ -1,22 +1,27 @@
 class Quantizer {
 
-    constructor(width, height, fps, plotArea){
+    constructor(width, height, fps, plotArea, userOptions) {
+
 
         this.bitrate = 1000000;
+        this.qp = 30;
         this.encoderConfig = {
-            // codec: "av01.0.04M.08",
-            codec: "vp09.00.10.08",
-            // codec: "avc1.64001E",
+            codec: userOptions.codec,
             width: width,
             height: height,
-            // bitrateMode: "quantizer",
-            // bitrateMode: "constant",
+            bitrateMode: userOptions.mode,
             framerate: fps,
-            //latencyMode: "realtime",
-            // bitrate: this.bitrate,
+            bitrate: this.bitrate,
         };
+
+        if (userOptions.bitrateFromSlider) this.bitrate = userOptions.bitrateFromSlider * 1000;
+        if (userOptions.qpFromSlider) {
+            this.bitrate = null;
+            this.qp = userOptions.qpFromSlider;
+        }
+
+        this.scenario = userOptions.scenario;
         this.chunks = [];
-        this.qp = 30;
         this.controller = null;
         this.plotArea = plotArea;
         this.counter = 0;
@@ -106,36 +111,49 @@ class Quantizer {
 
        if (this.encoderConfig.codec.includes("vp09")) {
             this.qp = Math.min(Math.max(qp + qp_change, 0), 63);
-            this.encodeOptions.vp9 = { quantizer: this.qp };
         } else if (this.encoderConfig.codec.includes("av01")) {
             this.qp = Math.min(Math.max(qp + qp_change, 0), 63);
-            this.encodeOptions.av1 = { quantizer: this.qp };
         } else if (this.encoderConfig.codec.includes("avc")) {
             this.qp = Math.min(Math.max(qp + qp_change, 0), 51);
+        }
+    }
+
+    setQp() {
+        if (this.encoderConfig.codec.includes("vp09")) {
+            this.encodeOptions.vp9 = { quantizer: this.qp };
+        } else if (this.encoderConfig.codec.includes("av01")) {
+            this.encodeOptions.av1 = { quantizer: this.qp };
+        } else if (this.encoderConfig.codec.includes("avc")) {
             this.encodeOptions.avc = { quantizer: this.qp };
         }
     }
 
-    processing(videoFrame, controller) {
-
-        this.encodeOptions.vp9 = { quantizer: this.qp };
+    processing(videoFrame, controller, currentBitrate, currentQp) {
 
         this.controller = controller;
-        // this.calculateQP(this.qp);
 
-        // シナリオ1
-        // if (this.counter % 2000 == 500 && this.counter) {
-        //     this.bitrateSwitch = this.bitrateSwitch ? 0 : 800000;
-        // }
-        // this.bitrate = 1000000 - this.bitrateSwitch;
+        if (this.scenario == "scenario1") {
+            if (this.counter % 2000 == 500 && this.counter) this.bitrateSwitch = this.bitrateSwitch ? 0 : 800000;
+            this.bitrate = 1000000 - this.bitrateSwitch;
+        } else if (this.scenario == "scenario2") { 
+            this.bitrate = this.bitrate + 10000;
+            if (this.bitrate > 20000000) this.bitrate = 200000;
+        } else if (this.scenario == "userControl") {
+            this.bitrate = currentBitrate * 1000;
+        }
 
-        // シナリオ2
-        this.bitrate = this.bitrate + 10000;
-        if (this.bitrate > 20000000) this.bitrate = 200000;
-
-        // this.encoderConfig.bitrate = this.bitrate;
-        // this.encoder.configure(this.encoderConfig);
-
+        if (this.encoderConfig.bitrateMode == "constant") {
+            this.encoderConfig.bitrate = this.bitrate;
+            this.encoder.configure(this.encoderConfig);
+        }
+        else if (!currentQp) {
+            this.calculateQP(this.qp);
+            this.setQp();
+        } else {
+            this.qp = currentQp;
+            this.setQp();
+        }
+        
         this.encoder.encode(videoFrame, this.encodeOptions);
 
         this.ploting();
@@ -184,43 +202,165 @@ class Quantizer {
         
         Plotly.extendTraces(this.plotArea, data, [0, 1]);
     }
-
-
-
 }
 
-window.onload = async () => {
+(async function () {
 
-    const videoFromFile = document.getElementById('input-video');
+    const inputVideo = document.getElementById('input-video');
     const videoControlled = document.getElementById('output-video');
     const startButton = document.getElementById('start-button');
+    const fileButton = document.getElementById('file-button');
+    const cameraButton = document.getElementById('camera-button');
+    const quantizerButton = document.getElementById('quantizer-button');
+    const constantButton = document.getElementById('constant-button');
+    const qpButton = document.getElementById('qp-button');
+    const av1Button = document.getElementById('av1-button');
+    const vp9Button = document.getElementById('vp9-button');
+    const avcButton = document.getElementById('avc-button');
+    const scenario1Button = document.getElementById('scenario1-button');
+    const scenario2Button = document.getElementById('scenario2-button');
+    const userControlButton = document.getElementById('user-control-button');
+    const brSliderValue = document.getElementById('br-slider-value');
+    const brSlider = document.getElementById('br-slider');
+    const qpSliderValue = document.getElementById('qp-slider-value');
+    const qpSlider = document.getElementById('qp-slider');
+    const modeSelectArea = document.getElementById('mode-select-area');
+    const codecSelectArea = document.getElementById('codec-select-area');
+    const scenarioSelectArea = document.getElementById('scenario-select-area');
+    const brAdjastArea = document.getElementById('br-adjast-area');
+    const qpAdjastArea = document.getElementById('qp-adjast-area');
+    const startButtonArea = document.getElementById('start-button-area');
+    const inputVideoArea = document.getElementById('input-video-area');
+    const outputVideoArea = document.getElementById('output-video-area');
 
-    const stream = await videoFromFile.captureStream();
+    let stream;
+    let userOptions = {
+        mode: null,
+        codec: null,
+        scenario: null,
+        bitrateFromSlider: null,
+        qpFromSlider: null,
+    };
 
-    const videoTrack = stream.getVideoTracks()[0];
-    videoTrack.contentHint = "detail";
-    const processor = new MediaStreamTrackProcessor({track: videoTrack});
-    const generator = new MediaStreamTrackGenerator({kind: "video"});
-    const outputStream = new MediaStream();
-    outputStream.addTrack(generator);
-    videoControlled.srcObject = outputStream;
+    const selectButton = (selectedButton, next, otherButton1=null, otherButton2=null) => {
+        selectedButton.className = "selected";
+        selectedButton.disabled = true;
+        next.style.display = "block";
+        if (otherButton1) otherButton1.disabled = true;
+        if (otherButton2) otherButton2.disabled = true;
+    }
 
+    // video source select
+    fileButton.addEventListener("click", async function () {
+        selectButton(this, codecSelectArea, cameraButton);
+        inputVideoArea.style.display = "block";
+        outputVideoArea.style.display = "block";
+
+        stream = await inputVideo.captureStream();
+    });
+
+    cameraButton.addEventListener("click", async function () {
+        selectButton(this, codecSelectArea, fileButton);        
+        
+        stream = await navigator.mediaDevices.getUserMedia({video: true});
+        inputVideo.srcObject = stream;
+        inputVideo.play();
+
+        inputVideoArea.style.display = "block";
+        outputVideoArea.style.display = "block";
+    });
+
+    // codec select
+    av1Button.addEventListener("click", function () {
+        selectButton(this, modeSelectArea, vp9Button, avcButton);
+        userOptions.codec = "av01.0.04M.08";
+    });
+
+    vp9Button.addEventListener("click", function () {
+        selectButton(this, modeSelectArea, av1Button, avcButton);
+        userOptions.codec = "vp09.00.10.08";
+    });
+
+    avcButton.addEventListener("click", function () {
+        selectButton(this, modeSelectArea, vp9Button, av1Button);
+        userOptions.codec = "avc1.64001E";
+    });
+
+    // mode select
+    quantizerButton.addEventListener("click", function () {
+        selectButton(this, scenarioSelectArea, constantButton, qpButton);
+        userOptions.mode = "quantizer";
+    });
+
+    constantButton.addEventListener("click", function () {
+        selectButton(this, scenarioSelectArea, quantizerButton, qpButton);
+        userOptions.mode = "constant";
+    });
+
+    qpButton.addEventListener("click", function () {
+        selectButton(this, startButtonArea, quantizerButton, constantButton);
+        userOptions.mode = "quantizer";
+
+        userOptions.qpFromSlider = 30;
+        qpAdjastArea.style.display = "block";
+        qpSlider.addEventListener("input", function () {
+            qpSliderValue.innerHTML = this.value;
+            userOptions.qpFromSlider = this.value;
+        })
+    });
+
+    // scenario select
+    scenario1Button.addEventListener("click", function () {
+        selectButton(this, startButtonArea, scenario2Button, userControlButton);
+        userOptions.scenario = "scenario1";
+    });
+
+    scenario2Button.addEventListener("click", function () {
+        selectButton(this, startButtonArea, scenario1Button, userControlButton);
+        userOptions.scenario = "scenario2";
+    });
+
+    userControlButton.addEventListener("click", function () {
+        selectButton(this, startButtonArea, scenario1Button, scenario2Button);
+        userOptions.scenario = "userControl";
+
+        userOptions.bitrateFromSlider = 1000;
+        brAdjastArea.style.display = "block";
+        brSlider.addEventListener("input", function () {
+            if (this.value < 1000) brSliderValue.innerHTML = this.value + "kbps";
+            else brSliderValue.innerHTML = this.value / 1000 + "Mbps";
+            
+            userOptions.bitrateFromSlider = this.value;
+        })
+    });
+
+    // start
     startButton.onclick = () => {
 
-        videoFromFile.play();
+        startButton.disabled = true;
+        inputVideo.play();
 
-        console.log(videoFromFile.videoWidth);
+        const videoTrack = stream.getVideoTracks()[0];
+        videoTrack.contentHint = "detail";
+        const processor = new MediaStreamTrackProcessor({track: videoTrack});
+        const generator = new MediaStreamTrackGenerator({kind: "video"});
+        const outputStream = new MediaStream();
+        outputStream.addTrack(generator);
+        videoControlled.srcObject = outputStream;
+
+        console.log(inputVideo.videoWidth);
         
         const quantizer = new Quantizer(
-            videoFromFile.videoWidth, 
-            videoFromFile.videoHeight, 
+            inputVideo.videoWidth, 
+            inputVideo.videoHeight, 
             videoTrack.getSettings().frameRate, 
             "plot-area",
+            userOptions
             );
 
         const transformer = new TransformStream({
             async transform(videoFrame, controller) {
-                quantizer.processing(videoFrame, controller);
+                quantizer.processing(videoFrame, controller, userOptions.bitrateFromSlider, userOptions.qpFromSlider);
                 videoFrame.close();
             }
         });
@@ -231,4 +371,4 @@ window.onload = async () => {
 
     }
 
-};
+})();
