@@ -1,8 +1,6 @@
 class Quantizer {
 
     constructor(width, height, fps, plotArea, userOptions) {
-
-
         this.bitrate = 1000000;
         this.qp = 30;
         this.encoderConfig = {
@@ -14,8 +12,13 @@ class Quantizer {
             bitrate: this.bitrate,
         };
 
-        if (userOptions.bitrateFromSlider) this.bitrate = userOptions.bitrateFromSlider * 1000;
+        // Bitrate select mode
+        if (userOptions.bitrateFromSlider) {
+            this.bitrate = userOptions.bitrateFromSlider * 1000;
+        }
+        // QP select mode
         if (userOptions.qpFromSlider) {
+            // HACK: depend on plotly.js
             this.bitrate = null;
             this.qp = userOptions.qpFromSlider;
         }
@@ -26,10 +29,11 @@ class Quantizer {
         this.plotArea = plotArea;
         this.counter = 0;
         this.fps = fps;
-        console.log(fps);
-        this.plotSec = 0.5;
+        this.plotInterval = 0.5;
+        this.plotRate = this.plotInterval * this.fps;
         this.bitrateSwitch = 0;
 
+        // Image from encorder
         this.handleChunk = (chunk, config) => {
             if (config.decoderConfig && this.decoder.state === "unconfigured") {
                 config.decoderConfig.optimizeForLatency = true;
@@ -39,18 +43,20 @@ class Quantizer {
 
             if (chunk.type == 'key') {
                 this.chunks = [];
-              } else {
+            } else {
                 this.chunks.push(chunk);
-                if (this.chunks.length > this.ps) {
-                  let _ = this.chunks.shift();
+                if (this.chunks.length > this.fps) {
+                    this.chunks.shift();
                 }
-              }
+            }
         };
+
+        // Image from decoder
         this.processVideo = (frame) => {
-            // pass outputFrame to the next pipe
             const outputFrame = new VideoFrame(frame, {
                 timestamp: frame.timestamp,
             });
+            // pass outputFrame to the next pipe
             this.controller.enqueue(outputFrame);
             frame.close();
         }
@@ -61,7 +67,6 @@ class Quantizer {
         });
         
         this.encoder.configure(this.encoderConfig);
-
         this.encodeOptions = { keyFrame: false };
 
         this.decoder = new VideoDecoder({
@@ -72,10 +77,9 @@ class Quantizer {
         this.time = new Date();
 
         this.initPlot();
-
     }
 
-    // from https://docs.google.com/presentation/d/1FpCAlxvRuC0e52JrthMkx-ILklB5eHszbk8D3FIuSZ0/edit?usp=sharing
+    // From https://docs.google.com/presentation/d/1FpCAlxvRuC0e52JrthMkx-ILklB5eHszbk8D3FIuSZ0/edit?usp=sharing
     calculateQP(qp) {
         const frames_to_consider = 4;
         const frame_budget_bytes = (this.bitrate / this.fps) / 8;
@@ -85,7 +89,7 @@ class Quantizer {
 
         let chunks = this.chunks.slice(-frames_to_consider);
         let normalized_chunks_size = 0;
-        for (let i = 0; i < frames_to_consider; i++) 
+        for (let i = 0; i < frames_to_consider; ++i) 
             normalized_chunks_size += chunks[i].byteLength * impact_ratio[i];
         
         const diff_bytes = normalized_chunks_size - frame_budget_bytes;
@@ -129,26 +133,32 @@ class Quantizer {
     }
 
     processing(videoFrame, controller, currentBitrate, currentQp) {
+        if (!this.controller) this.controller = controller;
 
-        this.controller = controller;
-
+        // Bitrate control
+        //   Scenario 1
         if (this.scenario == "scenario1") {
             if (this.counter % 2000 == 500 && this.counter) this.bitrateSwitch = this.bitrateSwitch ? 0 : 800000;
             this.bitrate = 1000000 - this.bitrateSwitch;
+        //   Scenario 2
         } else if (this.scenario == "scenario2") { 
             this.bitrate = this.bitrate + 10000;
             if (this.bitrate > 20000000) this.bitrate = 200000;
+        //   User control scenario
         } else if (this.scenario == "userControl") {
             this.bitrate = currentBitrate * 1000;
         }
 
+        // Mode
+        //  Constant mode
         if (this.encoderConfig.bitrateMode == "constant") {
             this.encoderConfig.bitrate = this.bitrate;
             this.encoder.configure(this.encoderConfig);
-        }
-        else if (!currentQp) {
+        //  Quantizer mode (Auto QP)
+        } else if (!currentQp) {
             this.calculateQP(this.qp);
             this.setQp();
+        //  User control mode
         } else {
             this.qp = currentQp;
             this.setQp();
@@ -183,17 +193,16 @@ class Quantizer {
     }
 
     ploting() {
-        let plotRate = this.plotSec * this.fps;
-        if (this.counter++ % plotRate != 0) return;
+        if (++this.counter % this.plotRate != 0) return;
 
         let duration = (new Date() - this.time) / 1000;
         
         let totalBps = 0;
-        for (let chunk of this.chunks.slice(-plotRate)) {
+        for (let chunk of this.chunks.slice(-this.plotRate)) {
             totalBps += chunk.byteLength;
         }
 
-        const bps = totalBps / plotRate * this.fps * 8;
+        const bps = totalBps / this.plotRate * this.fps * 8;
 
         const data = {
             x: [[duration], [duration]],
@@ -205,7 +214,6 @@ class Quantizer {
 }
 
 (async function () {
-
     const inputVideo = document.getElementById('input-video');
     const videoControlled = document.getElementById('output-video');
     const startButton = document.getElementById('start-button');
@@ -248,7 +256,7 @@ class Quantizer {
         next.style.display = "block";
         if (otherButton1) otherButton1.disabled = true;
         if (otherButton2) otherButton2.disabled = true;
-    }
+    };
 
     // video source select
     fileButton.addEventListener("click", async function () {
@@ -273,17 +281,17 @@ class Quantizer {
     // codec select
     av1Button.addEventListener("click", function () {
         selectButton(this, modeSelectArea, vp9Button, avcButton);
-        userOptions.codec = "av01.0.04M.08";
+        userOptions.codec = "av01.0.08M.08";
     });
 
     vp9Button.addEventListener("click", function () {
         selectButton(this, modeSelectArea, av1Button, avcButton);
-        userOptions.codec = "vp09.00.10.08";
+        userOptions.codec = "vp09.00.20.08";
     });
 
     avcButton.addEventListener("click", function () {
         selectButton(this, modeSelectArea, vp9Button, av1Button);
-        userOptions.codec = "avc1.64001E";
+        userOptions.codec = "avc1.64001F";
     });
 
     // mode select
@@ -303,6 +311,8 @@ class Quantizer {
 
         userOptions.qpFromSlider = 30;
         qpAdjastArea.style.display = "block";
+
+        if (userOptions.codec.includes("avc")) qpSlider.max = "51";
         qpSlider.addEventListener("input", function () {
             qpSliderValue.innerHTML = this.value;
             userOptions.qpFromSlider = this.value;
@@ -336,7 +346,6 @@ class Quantizer {
 
     // start
     startButton.onclick = () => {
-
         startButton.disabled = true;
         inputVideo.play();
 
@@ -348,7 +357,9 @@ class Quantizer {
         outputStream.addTrack(generator);
         videoControlled.srcObject = outputStream;
 
-        console.log(inputVideo.videoWidth);
+        console.log("width: " + inputVideo.videoWidth);
+        console.log("height: " + inputVideo.videoHeight);
+        console.log("fps: " + videoTrack.getSettings().frameRate);
         
         const quantizer = new Quantizer(
             inputVideo.videoWidth, 
@@ -358,6 +369,7 @@ class Quantizer {
             userOptions
             );
 
+        // Main loop
         const transformer = new TransformStream({
             async transform(videoFrame, controller) {
                 quantizer.processing(videoFrame, controller, userOptions.bitrateFromSlider, userOptions.qpFromSlider);
@@ -368,7 +380,5 @@ class Quantizer {
         // Connect the pipeline
         processor.readable.pipeThrough(transformer).pipeTo(generator.writable);
         videoControlled.play();
-
-    }
-
+    };
 })();
