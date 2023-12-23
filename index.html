@@ -40,7 +40,7 @@
                 height: 500px;
             }
             .little-table {
-                width: 40vh;
+                width: 20vh;
             }
             input[type="range"] {
                 width: 100%;
@@ -80,7 +80,7 @@
                     </div>
                     <div id="qp-adjast-area" style="display:none">
                         <h3>QP</h3>
-                        <span id="qp-slider-value">30</span> <input id="qp-slider" type="range" min="0" max="51" value="30" step="1">
+                        <span id="qp-slider-value">30</span> <input id="qp-slider" type="range" min="0" max="63" value="30" step="1">
                     </div>
                 </td>
                 <td><div id="plot-area"></div></td>
@@ -90,13 +90,13 @@
             <button id="start-button" class="start">Start</button>
         </div>
         <hr>
-        <div id="input-video-area" style="display:none">
-            <h3>元データ</h3>
-            <video id="input-video" src="./video/droid.mov" muted></video>
-        </div>
         <div id="output-video-area" style="display:none">
             <h3>エンコード・デコード後</h3>
             <video id="output-video"></video>
+        </div>
+        <div id="input-video-area" style="display:none">
+            <h3>元データ</h3>
+            <video id="input-video" src="./video/droid.mov" muted></video>
         </div>
         <script src="src/index.js"></script>
     </body>
