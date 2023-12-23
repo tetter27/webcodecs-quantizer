@@ -18,7 +18,7 @@ https://tetter27.github.io/webcodecs-quantizer/
 
 ## Environment
 - Chrome 117 以上
-- AVC は使用不可
+- M1 Mac では AVC 使用不可
 
 ## Reference
 - https://docs.google.com/presentation/d/1FpCAlxvRuC0e52JrthMkx-ILklB5eHszbk8D3FIuSZ0/edit?usp=sharing
